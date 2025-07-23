@@ -25,7 +25,7 @@ function createDice() {
   return new THREE.Mesh(geometry, materials)
 }
 
-export default function DiceCanvas() {
+export default function DiceCanvas({ trigger }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -127,6 +127,10 @@ export default function DiceCanvas() {
       renderer.dispose()
     }
   }, [])
+
+  useEffect(() => {
+    console.log('trigger', trigger)
+  }, [trigger])
 
   return <div ref={mountRef} className="w-full h-full" />
 }
