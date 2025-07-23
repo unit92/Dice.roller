@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
 import * as THREE from 'three'
+import * as CANNON from 'cannon-es'
 
 function createFaceTexture(number) {
   const size = 256
@@ -30,24 +31,56 @@ export default function DiceCanvas() {
   useEffect(() => {
     const mount = mountRef.current
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 100)
-    camera.position.set(0, 0, 5)
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      mount.clientWidth / mount.clientHeight,
+      0.1,
+      100,
+    )
+    camera.position.set(0, 5, 10)
+    camera.lookAt(0, 0, 0)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     mount.appendChild(renderer.domElement)
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.8)
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6)
     scene.add(ambient)
-    const directional = new THREE.DirectionalLight(0xffffff, 0.5)
-    directional.position.set(5, 5, 5)
+    const directional = new THREE.DirectionalLight(0xffffff, 0.8)
+    directional.position.set(5, 10, 7)
     scene.add(directional)
 
+    // physics world with gravity
+    const world = new CANNON.World({
+      gravity: new CANNON.Vec3(0, -9.82, 0),
+    })
+
+    // ground plane
+    const planeBody = new CANNON.Body({
+      type: CANNON.Body.STATIC,
+      shape: new CANNON.Plane(),
+    })
+    planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
+    world.addBody(planeBody)
+
+    const planeGeometry = new THREE.PlaneGeometry(10, 10)
+    const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 })
+    const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+    plane.rotation.x = -Math.PI / 2
+    scene.add(plane)
+
+    const diceShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5))
+
+    const diceBody1 = new CANNON.Body({ mass: 1, shape: diceShape })
+    diceBody1.position.set(-1.2, 3, 0)
+    world.addBody(diceBody1)
     const dice1 = createDice()
-    dice1.position.x = -1.2
-    const dice2 = createDice()
-    dice2.position.x = 1.2
     scene.add(dice1)
+
+    const diceBody2 = new CANNON.Body({ mass: 1, shape: diceShape })
+    diceBody2.position.set(1.2, 3, 0)
+    world.addBody(diceBody2)
+    const dice2 = createDice()
     scene.add(dice2)
 
     const onResize = () => {
@@ -58,12 +91,30 @@ export default function DiceCanvas() {
     }
     window.addEventListener('resize', onResize)
 
+    let lastTime = performance.now()
     let frameId
     const animate = () => {
-      dice1.rotation.x += 0.01
-      dice1.rotation.y += 0.01
-      dice2.rotation.x += 0.01
-      dice2.rotation.y += 0.01
+      const time = performance.now()
+      const delta = (time - lastTime) / 1000
+      lastTime = time
+
+      world.step(1 / 60, delta)
+
+      dice1.position.set(diceBody1.position.x, diceBody1.position.y, diceBody1.position.z)
+      dice1.quaternion.set(
+        diceBody1.quaternion.x,
+        diceBody1.quaternion.y,
+        diceBody1.quaternion.z,
+        diceBody1.quaternion.w,
+      )
+      dice2.position.set(diceBody2.position.x, diceBody2.position.y, diceBody2.position.z)
+      dice2.quaternion.set(
+        diceBody2.quaternion.x,
+        diceBody2.quaternion.y,
+        diceBody2.quaternion.z,
+        diceBody2.quaternion.w,
+      )
+
       renderer.render(scene, camera)
       frameId = requestAnimationFrame(animate)
     }
