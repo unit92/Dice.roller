@@ -83,6 +83,12 @@ export default function DiceCanvas() {
     const dice2 = createDice()
     scene.add(dice2)
 
+    const diceBody3 = new CANNON.Body({ mass: 1, shape: diceShape })
+    diceBody3.position.set(0, 3, 0)
+    world.addBody(diceBody3)
+    const dice3 = createDice()
+    scene.add(dice3)
+
     const onResize = () => {
       const { clientWidth, clientHeight } = mount
       renderer.setSize(clientWidth, clientHeight)
@@ -115,6 +121,18 @@ export default function DiceCanvas() {
         diceBody2.quaternion.w,
       )
 
+      dice3.position.set(
+        diceBody3.position.x,
+        diceBody3.position.y,
+        diceBody3.position.z,
+      )
+      dice3.quaternion.set(
+        diceBody3.quaternion.x,
+        diceBody3.quaternion.y,
+        diceBody3.quaternion.z,
+        diceBody3.quaternion.w,
+      )
+
       renderer.render(scene, camera)
       frameId = requestAnimationFrame(animate)
     }
@@ -123,6 +141,9 @@ export default function DiceCanvas() {
     return () => {
       cancelAnimationFrame(frameId)
       window.removeEventListener('resize', onResize)
+      world.removeBody(diceBody1)
+      world.removeBody(diceBody2)
+      world.removeBody(diceBody3)
       mount.removeChild(renderer.domElement)
       renderer.dispose()
     }
